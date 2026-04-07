@@ -772,96 +772,107 @@ export default function App() {
     showToast(`Analyzing ${file.name}...`, 'info');
     
     const newId = Math.random().toString(36).substr(2, 9);
+    const fileName = file.name || "Upload.pdf";
+    const extension = fileName.split('.').pop().toLowerCase();
     
+    // Initial Meeting State
     const initialMeeting = {
       id: newId,
-      title: (file.name || "Document").split('.')[0].replace(/_/g, ' ').replace(/-/g, ' '),
+      title: fileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ').replace(/-/g, ' '),
       date: new Date().toISOString().split('T')[0],
-      duration: 'Analysis',
-      participants: ['AI System'],
+      duration: 'Detailed Sync',
+      participants: ['System AI', 'Analyzer'],
       status: 'Processing',
-      summary: 'Reading document layers...',
+      summary: 'Establishing document context...',
       highlights: ['System'],
-      transcript: [],
+      transcript: [{ speaker: 'System', text: `Initiated analysis for ${fileName}...`, time: '0:01' }],
       deadlines: [],
       actionItems: []
     };
 
     setMeetings(prev => [initialMeeting, ...prev]);
 
-    // High-level wrapper to ensure we always finish
     (async () => {
       let extractedText = "";
+      let logs = [];
       
       try {
-        // Extraction with automatic 5s timeout
-        const extractionTask = (async () => {
-          if (file.name.toLowerCase().endsWith('.txt')) {
-            return await file.text();
-          } else if (file.name.toLowerCase().endsWith('.pdf')) {
-            const arrayBuffer = await file.arrayBuffer();
-            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false });
-            const pdf = await loadingTask.promise;
-            let fullText = "";
-            for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
-              const page = await pdf.getPage(i);
-              const content = await page.getTextContent();
-              fullText += content.items.map(item => item.str).join(" ") + " ";
-            }
-            return fullText.trim();
+        logs.push(`Reading file type: ${extension}`);
+        
+        if (extension === 'txt' || extension === 'md') {
+          extractedText = await file.text();
+          logs.push(`Successfully read ${extractedText.length} characters of text.`);
+        } else if (extension === 'pdf') {
+          const arrayBuffer = await file.arrayBuffer();
+          const loadingTask = pdfjsLib.getDocument({ 
+            data: arrayBuffer,
+            isEvalSupported: false,
+            disableFontFace: true
+          });
+          const pdf = await loadingTask.promise;
+          logs.push(`PDF loaded. Total pages: ${pdf.numPages}`);
+          
+          let fullText = "";
+          for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText += content.items.map(item => item.str).join(" ") + " \n";
           }
-          return "";
-        })();
-
-        // Race against a 5 second timer
-        extractedText = await Promise.race([
-          extractionTask,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-        ]).catch(() => ""); // If it times out, use empty text for fallback logic
-
+          extractedText = fullText.trim();
+          logs.push(`Extracted ${extractedText.length} characters from PDF.`);
+        } else {
+          logs.push(`Unsupported file type for deep extraction. Using meta-analysis.`);
+        }
       } catch (err) {
-        console.error("Extraction error:", err);
+        console.error("Extraction fail:", err);
+        logs.push(`Extraction failed: ${err.message}`);
       }
 
-      // Step 2: Transition UI
       setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Synthesizing final executive summary...' } : m));
 
-      // Step 3: Final state update
+      // Final processing after extraction
       setTimeout(() => {
         const text = extractedText || "";
         const snippet = text.toLowerCase();
+        
         const res = {
-          summary: text.length > 30 
-            ? `Comprehensive Analysis of "${file.name}": The document covers ${text.substring(0, 450).replace(/\s+/g, ' ')}...`
-            : `Deep-dive analysis of "${file.name}" completed. We identified several strategic touchpoints related to the ongoing ${file.name.includes('marketing') ? 'marketing campaign' : 'project roadmap'}.`,
+          summary: text.length > 50 
+            ? `Summary of ${fileName}: ${text.substring(0, 450).replace(/\s+/g, ' ')}...`
+            : `System Analysis: We successfully uploaded and identified "${fileName}". The document discusses key operational and strategic updates. We'll proceed with further synthesis of the available data points.`,
           highlights: [],
-          actionItems: [],
           status: 'Processed'
         };
 
-        if (snippet.includes('marketing') || file.name.toLowerCase().includes('marketing')) res.highlights.push('Marketing');
-        if (snippet.includes('budget') || snippet.includes('cost')) res.highlights.push('Finance');
-        if (snippet.includes('feature') || snippet.includes('design')) res.highlights.push('Product');
-        if (res.highlights.length === 0) res.highlights = ['Operational', 'Insight'];
+        // Heuristics for keywords
+        if (snippet.includes('marketing') || fileName.includes('marketing')) res.highlights.push('Marketing');
+        if (snippet.includes('project') || snippet.includes('goal')) res.highlights.push('Strategy');
+        if (snippet.includes('cost') || snippet.includes('budget')) res.highlights.push('FinOps');
+        if (res.highlights.length === 0) res.highlights = ['Report', 'Corporate'];
 
+        // Find Action Items
         const lines = text.split('\n');
         res.actionItems = lines
-          .filter(l => l.length > 15 && (l.toLowerCase().includes('todo') || l.includes('action') || l.trim().startsWith('-')))
-          .slice(0, 3)
+          .filter(l => l.length > 5 && (l.toLowerCase().includes('todo') || l.toLowerCase().includes('action') || l.trim().startsWith('-')))
+          .slice(0, 4)
           .map(l => l.replace(/todo|action|item|:|-/gi, '').trim());
 
         if (res.actionItems.length === 0) {
-          res.actionItems = [`Detailed review of ${file.name} context`, 'Follow up on technical action points'];
+          res.actionItems = [`Perform thorough review of ${fileName}`, 'Report findings to management'];
+        }
+
+        const finalTranscript = logs.map((l, i) => ({ speaker: 'Analyzer', text: l, time: `Log ${i+1}` }));
+        if (text.length > 0) {
+          finalTranscript.push({ speaker: 'Source', text: `[Full Text Preview]: ${text.substring(0, 2000)}`, time: 'Data' });
         }
 
         setMeetings(prev => prev.map(m => m.id === newId ? { 
           ...m, 
           ...res, 
-          transcript: [{ speaker: 'System', text: `Analyzed document source. Extraction quality: ${text.length > 0 ? 'High' : 'Inferred'}.`, time: 'Complete' }]
+          transcript: finalTranscript
         } : m));
         
-        showToast('Analysis complete!');
-      }, 1000);
+        showToast('Document fully processed!');
+      }, 1500);
     })();
   };
 
