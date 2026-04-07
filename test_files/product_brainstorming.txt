@@ -1,0 +1,15 @@
+Meeting: Product Brainstorming - New Features Q4
+Date: 2024-10-12
+Participants: Sarah (Product), Mike (UX), Josh (Eng), Priya (Marketing)
+
+Sarah: Welcome everyone. Today we're brainstorming features for the Q4 roadmap. We want to focus on "User Retention".
+Mike: I've seen some data suggesting users drop off at the onboarding stage. Maybe we should simplify the 5-step wizard down to 2 steps.
+Josh: Simplifying is good, but we need to ensure we still capture the essential "Role" and "Team Size" metadata.
+Priya: From a marketing perspective, users are asking for more automation. Can we add a "One-click templates" feature?
+Sarah: I like that. Josh, how feasible is a template system?
+Josh: Building the backend for it is straightforward. We can use a JSON schema to define the layouts.
+Mike: We should also consider a dark mode. It's the most requested aesthetic feature.
+Sarah: Let's prioritize: 1. Simplified Onboarding, 2. Templates, 3. Dark Mode.
+Priya: I'll start working on the messaging for the Templates feature.
+Josh: I'll draft a quick technical proposal for the onboarding refactor by Friday.
+Sarah: Great. Let's sync again on Wednesday.

@@ -1,0 +1,22 @@
+Marketing Sprint Planning - Q3 Campaign
+Team: Brand & Growth
+Participants: Chloe (Growth Lead), Marcus (Brand), Elena (Content Strategist)
+
+Chloe: Our Q3 goal is 15k new trial signups.
+Marcus: We've been seeing good engagement with the "Productivity Hacks" series.
+Elena: I want to double down on several blog posts for "The Ultimate Guide to Modern Collaboration".
+Chloe: That's a great idea. Marcus, can we get some custom illustrations for Elena's guide?
+Marcus: I can have those ready by next Tuesday. 10 illustrations in total.
+Elena: I'll finish the first 500 words for the guide by Friday.
+Marcus: We should also update the homepage copy to reflect the new campaign messaging.
+Chloe: "Efficiency, but humanized"?
+Marcus: Exactly. Let's A/B test two variants: one focusing on the AI engine and another on user empowerment.
+Elena: I'll draft the copy for both.
+Chloe: Marcus, can you setup the split testing tags?
+Marcus: Already on it.
+Elena: We also need a 30-second teaser video for LinkedIn.
+Chloe: I'll talk to the video editor this afternoon. 
+Marcus: Let's launch by July 1st.
+Chloe: July 1st is the hard deadline for the live announcement.
+Elena: I'll ensure all social posts are scheduled in Hootsuite by June 28th.
+Chloe: Perfect. Next meeting on Thursday.

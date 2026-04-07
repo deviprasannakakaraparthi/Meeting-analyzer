@@ -1,0 +1,16 @@
+Project: AWS Migration Audit - Sprint Review
+Team: Data Architecture
+Participants: Liam (Infra), Sofia (DBA), Raj (Backend)
+
+Liam: We've officially moved 80% of our Postgres instances to Aurora.
+Sofia: That's great, but we still have that one legacy cluster in the old VPC.
+Raj: I'm concerned about the "Security Groups" there. They haven't been updated since 2021.
+Liam: I'll handle that on Monday. We need to create a cross-VPC peering connection or just finish the move.
+Sofia: I'll try to migrate the last 300GB tonight during the low-traffic window. 1 AM EST?
+Raj: That works. I've updated the application's connection strings in the staging env.
+Liam: We also need to double-check the "Auto Scaling" policies. The CPU threshold is too low right now.
+Sofia: Agreed. 60% instead of 40%?
+Liam: Let's do 70% and monitor.
+Raj: I'll update the Terraform scripts for the ASG policies.
+Liam: Done. Let's touch base tomorrow morning to see if the migration was successful.
+Sofia: Sounds like a plan.

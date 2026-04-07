@@ -1,0 +1,36 @@
+[MEETING TRANSCRIPT - CONFIDENTIAL]
+Subject: Cloud Infrastructure Scaling & Security Audit
+Date: March 29, 2026
+Duration: 52 minutes
+Participants:
+- Sarah Jenkins (CTO)
+- Michael Ross (VP Engineering)
+- Elena Vance (DevOps Lead)
+- Julian Thorne (Security Architect)
+
+---
+
+Sarah: Good morning, everyone. The primary goal today is to address the latency spikes we've seen on the US-East server cluster during peak traffic hours. Julian, I also want a quick update on the Zero Trust migration.
+
+Michael: Thanks, Sarah. Latency is definitely the priority. We hit 400ms yesterday at 2 PM. Our auto-scaler lagged behind by about 12 minutes. Elena, what's the plan for the Kubernetes cluster resize?
+
+Elena: I've benchmarked the new compute-optimized instances. By switching to the C6g instances, we get a 20% throughput increase at roughly the same cost. I'm proposing a blue-green deployment starting Tuesday.
+
+Julian: From a security perspective, I'm okay with that, but we need to ensure the persistent volumes are encrypted at rest with the new keys. Regarding Zero Trust—we've migrated 40% of our internal services. The HR portal and finance tools are done. The dev environment is next.
+
+Sarah: Tuesday sounds tight. Elena, can we push the staging test to Monday evening? I want the full deployment finished before the weekend.
+
+Elena: Monday evening is doable. I'll need a peer review on the Terraform templates by noon Monday. Michael?
+
+Michael: I'll handle the review. Julian, can you verify the IAM roles for the new cluster? I want to minimize our surface area.
+
+Julian: Will do. I'll run a scan at 4 PM today and have the report by EOD.
+
+Sarah: Great. Let's recap action items.
+1. Elena: Start staging tests Monday 6 PM.
+2. Michael: Review Terraform PR by Monday noon.
+3. Julian: Security scan on IAM roles today by 4 PM.
+
+Sarah: Any blockers? No? Then let's drop.
+
+[END OF TRANSCRIPT]
