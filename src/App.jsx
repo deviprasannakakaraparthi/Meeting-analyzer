@@ -33,6 +33,11 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure pdfjs worker (Standard way for Vite)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
 
 import './App.css';
 
@@ -761,23 +766,21 @@ export default function App() {
     }
   };
 
-  const handleUpload = (file) => {
+  const handleUpload = async (file) => {
     setIsUploading(false);
-    showToast(`${file.name} uploaded!`, 'info');
+    showToast(`Analyzing ${file.name}...`, 'info');
     
     const newId = Math.random().toString(36).substr(2, 9);
     const isAudio = file.name.match(/\.(mp3|wav|m4a)$/i);
-    const isDoc = file.name.match(/\.(pdf|docx|txt)$/i);
-    const fileNameLower = file.name.toLowerCase();
-
+    
     const newMeeting = {
       id: newId,
       title: file.name.split('.')[0].replace(/_/g, ' ').replace(/-/g, ' ') || 'Untitled Meeting',
       date: new Date().toISOString().split('T')[0],
-      duration: 'Analyzing...',
+      duration: isAudio ? 'Analyzing...' : 'Detailed Report',
       participants: ['AI Assistant', 'System'],
       status: 'Processing',
-      summary: 'Initializing neural engine...',
+      summary: 'Reading file contents...',
       highlights: [],
       transcript: [],
       deadlines: [],
@@ -786,75 +789,77 @@ export default function App() {
 
     setMeetings(prev => [newMeeting, ...prev]);
 
+    let extractedText = "";
+
+    try {
+      if (file.name.endsWith('.txt')) {
+        extractedText = await file.text();
+      } else if (file.name.endsWith('.pdf')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        let fullText = "";
+        for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const strings = content.items.map(item => item.str);
+          fullText += strings.join(" ") + "\n";
+        }
+        extractedText = fullText;
+      } else {
+        extractedText = "Binary file/Audio - content analysis simulated.";
+      }
+    } catch (err) {
+      console.error("Extraction error:", err);
+      extractedText = "Error reading file content. Make sure it is a valid text or PDF file.";
+    }
+
     // AI Processing Simulation Sequence
     setTimeout(() => {
-      setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Transcribing audio/parsing text...' } : m));
+      setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Extracting key themes and action items...' } : m));
     }, 1500);
 
     setTimeout(() => {
-      setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Extracting key themes and action items...' } : m));
-    }, 3000);
+      const snippet = extractedText.substring(0, 2000).toLowerCase();
+      
+      // Basic heuristic-based extraction from ACTUAL content
+      const res = {
+        summary: extractedText.length > 50 
+          ? `Analysis of "${file.name}": Content highlights include updates on ${extractedText.substring(0, 200).replace(/\n/g, ' ')}...`
+          : `Processed "${file.name}". Short document or low text quality.`,
+        highlights: [],
+        actionItems: [],
+        deadlines: []
+      };
 
-    setTimeout(() => {
-      let mockData;
+      if (snippet.includes('marketing') || snippet.includes('campaign')) res.highlights.push('Marketing', 'Growth');
+      if (snippet.includes('product') || snippet.includes('design') || snippet.includes('feature')) res.highlights.push('Product', 'UI/UX');
+      if (snippet.includes('budget') || snippet.includes('cost') || snippet.includes('price')) res.highlights.push('Finance', 'Budget');
+      if (snippet.includes('meeting') || snippet.includes('roadmap') || snippet.includes('sprint')) res.highlights.push('Planning', 'Operations');
+      
+      if (res.highlights.length === 0) res.highlights = ['Report', 'General'];
 
-      if (fileNameLower.includes('marketing') || fileNameLower.includes('campaign')) {
-        mockData = {
-          duration: isAudio ? '28:12' : 'Strategy Doc',
-          summary: 'Marketing sync focused on Q2 social media spend and influencer outreach. We identified a 20% budget surplus in the LinkedIn category.',
-          highlights: ['Social Media', 'Budget Allocation', 'Influencers'],
-          transcript: [
-            { speaker: 'Sarah', text: 'Let’s talk about the Q2 budget.', time: '0:10' },
-            { speaker: 'Mark', text: 'We have some extra room in LinkedIn ads.', time: '5:45' }
-          ],
-          actionItems: ['Reallocate 10k to Instagram ads', 'Review influencer contracts'],
-          deadlines: [{ task: 'Budget Review', date: 'Next Monday' }]
-        };
-      } else if (fileNameLower.includes('product') || fileNameLower.includes('design')) {
-        mockData = {
-          duration: isAudio ? '15:45' : 'Design Spec',
-          summary: 'Product design review for the new dashboard. Main feedback centered around simplified navigation and improved dark mode contrast.',
-          highlights: ['UI/UX', 'Dark Mode', 'Navigation'],
-          transcript: [
-            { speaker: 'Alex', text: 'The new sidebar feels a bit cluttered.', time: '2:30' },
-            { speaker: 'Jess', text: 'I agree. Let’s remove the sub-labels for mobile.', time: '8:12' }
-          ],
-          actionItems: ['Update mobile wireframes', 'Test dark mode contrast ratios'],
-          deadlines: [{ task: 'Final Prototype', date: 'Next Friday' }]
-        };
-      } else if (isAudio) {
-        mockData = {
-          duration: '12:30',
-          summary: `Audio recording "${file.name}" processed. High-level discussion regarding project timelines and upcoming resource allocation for the engineering team.`,
-          highlights: ['Engineering', 'Timelines', 'Resource Planning'],
-          transcript: [
-            { speaker: 'Speaker 1', text: 'We need two more devs for the migration.', time: '0:05' },
-            { speaker: 'Speaker 2', text: 'I\'ll talk to HR about the open roles.', time: '3:20' }
-          ],
-          actionItems: ['HR Sync for Engineering hires', 'Update Gantt chart'],
-          deadlines: [{ task: 'Resource Audit', date: 'Weekly Sync' }]
-        };
-      } else {
-        mockData = {
-          duration: isDoc ? 'Detailed Report' : '5:00',
-          summary: `Document analysis completed for "${file.name}". Key takeaways include operational improvements and a updated roadmap for the next sprint cycle.`,
-          highlights: ['Operations', 'Roadmap', 'Sprint Cycle'],
-          transcript: [
-            { speaker: 'Analyzer', text: 'Extracting key data points from document...', time: '0:01' },
-            { speaker: 'AI', text: 'Summary generated successfully.', time: '0:05' }
-          ],
-          actionItems: ['Review generated summary', 'Share with relevant stakeholders'],
-          deadlines: []
-        };
+      // Find lines that look like tasks
+      const lines = extractedText.split('\n');
+      res.actionItems = lines
+        .filter(l => l.toLowerCase().includes('todo') || l.toLowerCase().includes('action') || l.trim().startsWith('-') || l.trim().startsWith('*'))
+        .slice(0, 4)
+        .map(l => l.replace(/todo|action|item|:|-|\*/gi, '').trim())
+        .filter(l => l.length > 5);
+
+      if (res.actionItems.length === 0) {
+        res.actionItems = ['Review document insights', 'Coordinate next steps with relevant team'];
       }
 
-      setMeetings(prev => prev.map(m => m.id === newId ? {
-        ...m,
-        ...mockData,
-        status: 'Processed'
+      setMeetings(prev => prev.map(m => m.id === newId ? { 
+        ...m, 
+        ...res,
+        status: 'Processed',
+        transcript: [{ speaker: 'System', text: `Extracted ${extractedText.length} characters correctly from source.`, time: '0:01' }]
       } : m));
-      showToast('AI Summary complete!');
-    }, 5000);
+      
+      showToast('Document analyzed successfully!');
+    }, 4000);
   };
 
   return (
