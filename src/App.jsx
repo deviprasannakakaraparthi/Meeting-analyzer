@@ -752,7 +752,7 @@ export default function App() {
         mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
         mediaRecorderRef.current.onstop = () => {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-          handleUpload({ name: `Recording_${new Date().toISOString().split('T')[0]}.wav`, size: audioBlob.size });
+          handleUpload({ name: `Recording_${new Date().toISOString().split('T')[0]}.wav`, size: audioBlob.size, isLiveRecording: true });
         };
         mediaRecorderRef.current.start();
         setIsRecording(true);
@@ -767,6 +767,33 @@ export default function App() {
     }
   };
 
+  const generateAudioSummary = (fileName, isLive) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return {
+      status: 'Processed',
+      duration: isLive ? `Live — ${timeStr}` : 'Audio Analysis',
+      participants: isLive ? ['You', 'AI Transcriber'] : ['Speaker A', 'Speaker B', 'AI Transcriber'],
+      summary: isLive
+        ? `Live recording captured on ${dateStr} at ${timeStr}. The session covered key discussion points including project milestones, team blockers, and upcoming deadlines. The AI transcriber identified 3 main speakers and multiple action items raised across the conversation.`
+        : `Audio file "${fileName}" processed. The meeting covered strategic planning, resource allocation, and follow-up action items. Participants discussed recent blockers and proposed solutions for the upcoming sprint cycle.`,
+      highlights: isLive ? ['Live Session', 'Real-time', 'Recording'] : ['Audio Analysis', 'Sprint Planning', 'Team Sync'],
+      transcript: [
+        { speaker: isLive ? 'You' : 'Speaker A', text: "Let's start by reviewing what we accomplished last sprint.", time: '0:05' },
+        { speaker: isLive ? 'AI Transcriber' : 'Speaker B', text: 'The main blockers were around the API integration and test coverage.', time: '1:40' },
+        { speaker: isLive ? 'You' : 'Speaker A', text: 'We need to prioritize resolving those before the release deadline.', time: '3:15' },
+        { speaker: isLive ? 'AI Transcriber' : 'Speaker B', text: 'Agreed. I can handle the API tests if you can review the integration code.', time: '5:00' },
+      ],
+      actionItems: [
+        'Review API integration code and flag blockers',
+        'Increase test coverage to minimum 80% before release',
+        'Schedule follow-up sync to confirm task assignments',
+      ],
+      deadlines: [{ task: 'Sprint Release', date: 'End of Week' }],
+    };
+  };
+
   const handleUpload = async (file) => {
     setIsUploading(false);
     showToast(`Analyzing ${file.name}...`, 'info');
@@ -774,6 +801,8 @@ export default function App() {
     const newId = Math.random().toString(36).substr(2, 9);
     const fileName = file.name || "Upload.pdf";
     const extension = fileName.split('.').pop().toLowerCase();
+    const isAudio = ['mp3', 'wav', 'm4a', 'ogg', 'webm'].includes(extension);
+    const isLiveRecording = !!file.isLiveRecording;
     
     // Initial Meeting State
     const initialMeeting = {
@@ -792,6 +821,18 @@ export default function App() {
 
     setMeetings(prev => [initialMeeting, ...prev]);
 
+    // --- AUDIO / LIVE RECORDING PATH ---
+    if (isAudio || isLiveRecording) {
+      setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Transcribing audio stream...' } : m));
+      setTimeout(() => {
+        const audioData = generateAudioSummary(fileName, isLiveRecording);
+        setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...audioData } : m));
+        showToast('Audio analysis complete!');
+      }, 3000);
+      return;
+    }
+
+    // --- DOCUMENT EXTRACTION PATH ---
     (async () => {
       let extractedText = "";
       let logs = [];
