@@ -5,5 +5,4 @@ dist
 .env
 README.md
 Technical_Architecture_Review.txt
-Dockerfile
-nginx.conf
+
