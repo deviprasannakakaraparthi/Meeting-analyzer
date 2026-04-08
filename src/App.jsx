@@ -177,6 +177,48 @@ const AuthView = ({ onLogin }) => {
   );
 };
 
+const UploadModal = ({ onClose, onUpload, onShowToast }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef();
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <motion.div 
+        className="modal" 
+        onClick={e => e.stopPropagation()}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+      >
+        <button className="close-btn" onClick={onClose}><X size={24} /></button>
+        <h2 style={{ marginBottom: '12px' }}>Input Meeting Content</h2>
+        <p className="text-muted" style={{ marginBottom: '32px' }}>Upload local files or sync with your cloud meetings.</p>
+        
+        <div 
+          className={`drop-zone ${isDragging ? 'dragging' : ''}`}
+          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={e => { e.preventDefault(); setIsDragging(false); onUpload(e.dataTransfer.files[0]); }}
+          onClick={() => fileInputRef.current.click()}
+        >
+          <Upload size={48} color="var(--primary)" />
+          <h3>Click or drag files</h3>
+          <p className="text-muted">Supports MP3, WAV, PDF, TXT</p>
+          <input type="file" ref={fileInputRef} hidden onChange={e => onUpload(e.target.files[0])} accept=".mp3,.wav,.pdf,.txt" />
+        </div>
+
+        <div className="modal-actions-grid">
+          <button className="integration-btn" onClick={() => onShowToast('Synced Google Drive!', 'success')}>
+            <Database size={20} /> Drive
+          </button>
+          <button className="integration-btn" onClick={() => onShowToast('Synced Google Meet!', 'success')}>
+            <Video size={20} /> Meet
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const ScheduleModal = ({ onClose, onSchedule }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -400,8 +442,8 @@ const Dashboard = ({ meetings, onSelect, onUploadClick, onRecordToggle, isRecord
             <h3 className="card-title">{meeting.title}</h3>
             <p className="card-excerpt">{meeting.excerpt || meeting.summary}</p>
             <div className="tag-container">
-              {meeting.highlights.slice(0, 3).map(h => (
-                <span key={h} className="tag">#{h.replace(/\s+/g, '')}</span>
+              {meeting.highlights?.slice(0, 3).map(h => (
+                <span key={h} className="tag">#{h?.replace(/\s+/g, '')}</span>
               ))}
             </div>
           </motion.div>
@@ -497,12 +539,12 @@ const MeetingDetail = ({ meeting, onBack, onShowToast, onDelete }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3><FileText size={18} /> Full Transcript</h3>
                 <button className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }} onClick={() => {
-                  const t = meeting.transcript.map(m => `${m.speaker} (${m.time}): ${m.text}`).join('\n');
+                  const t = (meeting.transcript || []).map(m => `${m.speaker} (${m.time}): ${m.text}`).join('\n');
                   navigator.clipboard.writeText(t);
                   onShowToast('Transcript copied to clipboard!');
                 }}>Copy Transcript</button>
               </div>
-              {meeting.transcript.map((msg, i) => (
+              {meeting.transcript?.map((msg, i) => (
                 <div key={i} className="transcript-block">
                   <div className="speaker-label" style={{ background: i % 2 === 0 ? 'var(--primary)' : 'var(--accent-blue)' }}>
                     {msg.speaker?.charAt(0) || 'A'}
@@ -513,7 +555,7 @@ const MeetingDetail = ({ meeting, onBack, onShowToast, onDelete }) => {
                   </div>
                 </div>
               ))}
-              {meeting.transcript.length === 0 && <p className="text-muted">No transcript available for this document.</p>}
+              {(!meeting.transcript || meeting.transcript.length === 0) && <p className="text-muted">No transcript available for this document.</p>}
             </div>
           </div>
 
@@ -521,12 +563,12 @@ const MeetingDetail = ({ meeting, onBack, onShowToast, onDelete }) => {
             <div className="side-card">
               <h3><CheckCircle2 size={18} /> Action Items</h3>
               <ul>
-                {meeting.actionItems.map((item, i) => <li key={i}>{item}</li>)}
+                {meeting.actionItems?.map((item, i) => <li key={i}>{item}</li>)}
               </ul>
             </div>
             <div className="side-card">
               <h3><AlertCircle size={18} /> Deadlines</h3>
-              {meeting.deadlines.map((dl, i) => (
+              {meeting.deadlines?.map((dl, i) => (
                 <div key={i} className="deadline-row">
                   <div className="deadline-pin" />
                   <div>
@@ -535,12 +577,12 @@ const MeetingDetail = ({ meeting, onBack, onShowToast, onDelete }) => {
                   </div>
                 </div>
               ))}
-              {meeting.deadlines.length === 0 && <p className="text-muted">None</p>}
+              {(!meeting.deadlines || meeting.deadlines.length === 0) && <p className="text-muted">None</p>}
             </div>
             <div className="side-card">
               <h3><Target size={18} /> Key Topics</h3>
               <div className="tag-list">
-                {meeting.highlights.map(h => <span key={h} className="large-tag">{h}</span>)}
+                {meeting.highlights?.map(h => <span key={h} className="large-tag">{h}</span>)}
               </div>
             </div>
           </div>
@@ -632,7 +674,7 @@ const ProfileView = ({ user, onUpdate, onShowToast }) => {
       <div className="profile-container">
         <div className="profile-sidebar">
           <div className="profile-avatar-large">
-            {profile.name.split(' ').map(n => n[0]).join('')}
+            {profile.name?.split(' ').map(n => n[0]).join('') || 'U'}
             <div className="avatar-badge">Pro</div>
           </div>
           <h2 style={{ marginTop: '16px' }}>{profile.name}</h2>
@@ -1286,45 +1328,3 @@ export default function App() {
   );
 }
 
-// Reusing UploadModal with improved Toast support
-const UploadModal = ({ onClose, onUpload, onShowToast }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef();
-
-  return (
-    <div className="overlay" onClick={onClose}>
-      <motion.div 
-        className="modal" 
-        onClick={e => e.stopPropagation()}
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-      >
-        <button className="close-btn" onClick={onClose}><X size={24} /></button>
-        <h2 style={{ marginBottom: '12px' }}>Input Meeting Content</h2>
-        <p className="text-muted" style={{ marginBottom: '32px' }}>Upload local files or sync with your cloud meetings.</p>
-        
-        <div 
-          className={`drop-zone ${isDragging ? 'dragging' : ''}`}
-          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={e => { e.preventDefault(); setIsDragging(false); onUpload(e.dataTransfer.files[0]); }}
-          onClick={() => fileInputRef.current.click()}
-        >
-          <Upload size={48} color="var(--primary)" />
-          <h3>Click or drag files</h3>
-          <p className="text-muted">Supports MP3, WAV, PDF, TXT</p>
-          <input type="file" ref={fileInputRef} hidden onChange={e => onUpload(e.target.files[0])} accept=".mp3,.wav,.pdf,.txt" />
-        </div>
-
-        <div className="modal-actions-grid">
-          <button className="integration-btn" onClick={() => onShowToast('Synced Google Drive!', 'success')}>
-            <Database size={20} /> Drive
-          </button>
-          <button className="integration-btn" onClick={() => onShowToast('Synced Google Meet!', 'success')}>
-            <Video size={20} /> Meet
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
