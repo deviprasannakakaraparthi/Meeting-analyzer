@@ -8,6 +8,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        var div = document.createElement('div');
+        div.style.color = 'red';
+        div.style.position = 'fixed';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.style.background = 'white';
+        div.style.zIndex = '9999';
+        div.style.padding = '20px';
+        div.style.border = '2px solid red';
+        div.innerHTML = 'Fatal Error: ' + msg + ' at ' + url + ':' + lineNo;
+        document.body.appendChild(div);
+        return false;
+      };
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
