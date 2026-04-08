@@ -36,7 +36,7 @@ import html2canvas from 'html2canvas';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure pdfjs worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs`;
 
 
 
@@ -46,47 +46,25 @@ import './App.css';
 
 const INITIAL_MEETINGS = [
   {
-    id: '1',
-    title: 'Product Roadmap Q3',
-    date: '2024-03-25',
-    duration: '45 mins',
-    participants: ['Alice Chen', 'Bob Smith', 'Charlie Day'],
+    id: 'tutorial-1',
+    title: 'Welcome to SummAI - Getting Started',
+    date: new Date().toISOString().split('T')[0],
+    duration: '2 mins',
+    participants: ['SummAI Guide'],
     status: 'Processed',
-    summary: 'Discussion centered on the Q3 priorities, focusing on the mobile app redesign and API performance improvements. We identified key bottlenecks in the current deployment pipeline.',
-    excerpt: 'We need to prioritize the React Native upgrade by mid-April to avoid technical debt...',
+    summary: 'This is a sample meeting analysis. Use the "Quick Record" button above to transcribe your voice in real-time, or "New Meeting" to upload a transcript/PDF. The AI will automatically extract highlights, key decisions, and action items.',
+    excerpt: 'Welcome! This tool uses advanced heuristics to summarize your meetings instantly...',
     transcript: [
-      { speaker: 'Alice Chen', text: "Welcome everyone. Let's start with the Q3 roadmap. Bob, where are we with the mobile redesign?", time: '0:05' },
-      { speaker: 'Bob Smith', text: "The wireframes are 90% done. We're on track to start the React Native upgrade next week. Charlie, can you confirm the API capacity?", time: '1:12' },
-      { speaker: 'Charlie Day', text: "Yes, we've scaled the instances. We should be good for the launch peak.", time: '2:30' },
-      { speaker: 'Alice Chen', text: "Great. Remember, the deadline for the final prototype is April 15th.", time: '15:45' }
+      { speaker: 'Guide', text: "Hello! To get started, click the Quick Record button in the top right. Speak clearly and you'll see your words appear live.", time: '0:05' },
+      { speaker: 'Guide', text: "After you stop, I will analyze the content and provide an executive summary just like this one.", time: '0:30' }
     ],
-    highlights: ['Mobile app redesign', 'API scaling', 'React Native upgrade', 'Deployment pipeline'],
-    deadlines: [
-      { task: 'Final Prototype', date: 'April 15, 2024' },
-      { task: 'Beta Launch', date: 'May 10, 2024' }
-    ],
-    actionItems: [
-      'Bob: Finalize wireframes',
-      'Charlie: Monitor API benchmarks',
-      'Alice: Schedule stakeholder review'
-    ]
-  },
-  {
-    id: '2',
-    title: 'Marketing Sync',
-    date: '2024-03-27',
-    duration: '30 mins',
-    participants: ['David Doe', 'Eva Green'],
-    status: 'Processed',
-    summary: 'Weekly sync on social media campaigns and upcoming product launch event. Focus on LinkedIn engagement strategies and video asset performance.',
-    excerpt: 'Social engagement is up 15%. We should double down on visual content for LinkedIn...',
-    transcript: [
-      { speaker: 'David Doe', text: "How's the LinkedIn push going?", time: '0:10' },
-      { speaker: 'Eva Green', text: "The new video assets are performing really well. 15% increase in engagement.", time: '5:20' }
-    ],
-    highlights: ['Social media growth', 'Visual content', 'LinkedIn strategy'],
+    highlights: ['Tutorial', 'Features', 'Quick Start'],
     deadlines: [],
-    actionItems: ['Eva: Upload new assets by Friday']
+    actionItems: [
+      'Try a live recording using the Mic button',
+      'Upload a PDF or Text file using the Plus button',
+      'Export your summary to PDF once analyzed'
+    ]
   }
 ];
 
@@ -274,7 +252,7 @@ const CalendarView = ({ meetings, onSelectMeeting, onScheduleClick }) => {
   );
 };
 
-const Dashboard = ({ meetings, onSelect, onUploadClick, onRecordToggle, isRecording }) => {
+const Dashboard = ({ meetings, onSelect, onUploadClick, onRecordToggle, isRecording, liveTranscript, recordingDuration }) => {
   const [search, setSearch] = useState('');
   
   const filteredMeetings = useMemo(() => {
@@ -330,9 +308,27 @@ const Dashboard = ({ meetings, onSelect, onUploadClick, onRecordToggle, isRecord
               />
             ))}
           </div>
-          <div className="recording-info">
+          <div className="recording-info" style={{ flexGrow: 1 }}>
             <span className="live-indicator">LIVE</span>
-            <p>Capturing audio... AI is processing transcript in real-time.</p>
+            <div className="live-transcript-preview" style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', marginTop: '8px' }}>
+              {liveTranscript && liveTranscript.length > 0 ? (
+                liveTranscript.slice(-3).map((segment, idx) => (
+                  <p key={idx} style={{ opacity: idx === 2 ? 1 : 0.6, fontSize: '0.9rem', marginBottom: '4px' }}>
+                    {segment.text}
+                  </p>
+                ))
+              ) : (
+                <p>Listening... speak clearly into your microphone.</p>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+              <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                {Math.floor(recordingDuration / 60)}:{String(recordingDuration % 60).padStart(2, '0')} elapsed
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                {liveTranscript.length} segments captured
+              </span>
+            </div>
           </div>
         </motion.div>
       )}
@@ -693,6 +689,8 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState([]);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [toast, setToast] = useState(null);
   const [user, setUser] = useState({
     name: 'John Doe',
@@ -705,6 +703,9 @@ export default function App() {
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const recordingTimerRef = useRef(null);
+  const liveTranscriptRef = useRef([]);
 
   useEffect(() => {
     if (toast) {
@@ -743,178 +744,306 @@ export default function App() {
     showToast('Meeting deleted', 'info');
   };
 
+
+
+  const isRecordingRef = useRef(false);
+
   const handleRecordToggle = async () => {
-    if (!isRecording) {
+    if (!isRecordingRef.current) {
+      // Check for SpeechRecognition support
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        showToast('Speech recognition not supported in this browser. Use Chrome.', 'error');
+        return;
+      }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        audioChunksRef.current = [];
-        mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-        mediaRecorderRef.current.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-          handleUpload({ name: `Recording_${new Date().toISOString().split('T')[0]}.wav`, size: audioBlob.size, isLiveRecording: true });
+        await navigator.mediaDevices.getUserMedia({ audio: true }); // permission check
+        liveTranscriptRef.current = [];
+        setLiveTranscript([]);
+        setRecordingDuration(0);
+        recordingTimerRef._seconds = 0;
+
+        const startRecognition = () => {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-US';
+          recognitionRef.current = recognition;
+
+          recognition.onresult = (event) => {
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const result = event.results[i];
+              if (result.isFinal) {
+                const mins = Math.floor(recordingTimerRef._seconds / 60);
+                const secs = (recordingTimerRef._seconds || 0) % 60;
+                const timeLabel = `${mins}:${String(secs).padStart(2,'0')}`;
+                const entry = { speaker: 'You', text: result[0].transcript.trim(), time: timeLabel };
+                liveTranscriptRef.current = [...liveTranscriptRef.current, entry];
+                setLiveTranscript([...liveTranscriptRef.current]);
+              }
+            }
+          };
+
+          recognition.onerror = (e) => {
+            // 'no-speech' and 'aborted' are normal — don't show error toast
+            if (e.error !== 'no-speech' && e.error !== 'aborted') {
+              showToast(`Speech recognition error: ${e.error}`, 'error');
+            }
+          };
+
+          // KEY FIX: auto-restart when recognition stops (silence pause or timeout)
+          // Chrome's SpeechRecognition stops itself every ~60s or on silence — we restart it
+          recognition.onend = () => {
+            if (isRecordingRef.current) {
+              // Still recording — restart recognition seamlessly
+              try { startRecognition(); } catch(e) { /* ignore */ }
+            }
+          };
+
+          recognition.start();
         };
-        mediaRecorderRef.current.start();
+
+        startRecognition();
+        isRecordingRef.current = true;
         setIsRecording(true);
-        showToast('Mic active. Recording...');
+        showToast('🎙️ Mic active. Speak now — your words are being transcribed in real-time!');
+
+        // Timer
+        let seconds = 0;
+        recordingTimerRef._seconds = 0;
+        recordingTimerRef.current = setInterval(() => {
+          seconds++;
+          recordingTimerRef._seconds = seconds;
+          setRecordingDuration(seconds);
+        }, 1000);
+
       } catch (err) {
-        showToast('Mic access denied', 'error');
+        showToast('Mic access denied. Please allow microphone permission.', 'error');
       }
     } else {
-      mediaRecorderRef.current.stop();
+      // Stop recording — set ref FIRST so onend restart loop stops immediately
+      isRecordingRef.current = false;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
       setIsRecording(false);
-      showToast('Processing local recording...');
+      showToast('Processing your recording...');
+
+      const capturedLines = liveTranscriptRef.current;
+      const fileName = `Recording_${new Date().toISOString().split('T')[0]}`;
+      const newId = Math.random().toString(36).substr(2, 9);
+      // Use ref directly — avoids stale closure from recordingDuration state
+      const finalDuration = recordingTimerRef._seconds || 0;
+
+      const initialMeeting = {
+        id: newId,
+        title: `Live Recording — ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+        date: new Date().toISOString().split('T')[0],
+        duration: `${Math.floor(finalDuration / 60)}m ${finalDuration % 60}s`,
+        participants: ['You (Speaker)'],
+        status: 'Processing',
+        summary: 'Finalizing real-time transcription...',
+        highlights: ['Live Recording'],
+        transcript: capturedLines.length > 0 ? capturedLines : [{ speaker: 'System', text: 'Processing...', time: '0:00' }],
+        deadlines: [],
+        actionItems: []
+      };
+      setMeetings(prev => [initialMeeting, ...prev]);
+
+      setTimeout(() => {
+        const fullText = capturedLines.map(l => l.text).join(' ');
+        const result = processAnalyzedContent(fullText, fileName, true);
+        result.title = `Live Recording — ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+        result.duration = `${Math.floor(finalDuration / 60)}m ${finalDuration % 60}s`;
+        result.participants = ['You (Guest)'];
+        result.transcript = capturedLines.length > 0 ? capturedLines : [{ speaker: 'System', text: 'No speech was detected.', time: '0:00' }];
+        
+        setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...result } : m));
+        showToast('✅ Session analyzed!', 'success');
+      }, 1500);
+
+      setLiveTranscript([]);
+      setRecordingDuration(0);
+      liveTranscriptRef.current = [];
     }
   };
 
-  const generateAudioSummary = (fileName, isLive) => {
+  const processAnalyzedContent = (text, fileName, isLive) => {
+    const snippet = text.toLowerCase();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+    // 1. Topic/Highlights Detection
+    const highlights = [];
+    const topicKeywords = {
+      'Project Planning': ['project', 'roadmap', 'sprint', 'task', 'milestone', 'goal', 'plan', 'timeline', 'deadline', 'priority'],
+      'Design/UX': ['design', 'ui', 'ux', 'mock', 'wireframe', 'color', 'brand', 'interface', 'user', 'experience', 'prototype', 'accessibility'],
+      'Engineering': ['api', 'code', 'deploy', 'bug', 'fix', 'react', 'node', 'database', 'frontend', 'backend', 'cloud', 'aws', 'service', 'infrastructure', 'scaling', 'performance'],
+      'Finance': ['budget', 'cost', 'revenue', 'money', 'billing', 'profit', 'spend', 'price', 'dollar', 'invoice', 'funding', 'expense'],
+      'Marketing': ['marketing', 'campaign', 'seo', 'ads', 'social', 'email', 'lead', 'growth', 'sales', 'outreach', 'branding', 'engagement'],
+      'Operations': ['legal', 'hr', 'compliance', 'office', 'hiring', 'culture', 'policy', 'meeting', 'management', 'security', 'audit']
+    };
+
+    Object.entries(topicKeywords).forEach(([topic, keywords]) => {
+      if (keywords.some(k => snippet.includes(k))) highlights.push(topic);
+    });
+    if (isLive) highlights.push('Live Session');
+    if (highlights.length === 0) highlights.push('General Discussion');
+
+    // 2. Advanced Summary Synthesis (Weighted Heuristic)
+    let summary = "";
+    if (text.length < 30) {
+      summary = `The ${isLive ? 'recording' : 'document'} appears to be too brief or empty for a detailed analysis. Please ensure the ${isLive ? 'microphone is picking up clear audio' : 'file contains readable text'}.`;
+    } else {
+      // Split into sentences and score them
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || text.split('\n');
+      
+      // Filter out very short or filler sentences
+      const candidates = sentences.filter(s => {
+        const clean = s.trim().toLowerCase();
+        return clean.length > 35 && 
+               !clean.startsWith('hi') && 
+               !clean.startsWith('hello') && 
+               !clean.startsWith('welcome') &&
+               !clean.includes('good morning') &&
+               !clean.includes('can you hear');
+      });
+
+      // Score candidates based on keyword density
+      const scored = candidates.map(s => {
+        const lower = s.toLowerCase();
+        let score = 0;
+        Object.values(topicKeywords).flat().forEach(k => {
+          if (lower.includes(k)) score += 1;
+        });
+        // Bonus for "conclusive" words
+        if (lower.includes('should') || lower.includes('will') || lower.includes('important') || lower.includes('goal')) score += 2;
+        return { text: s.trim(), score };
+      });
+
+      // Sort by score and take top 3-4
+      const topSentences = scored
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4)
+        .map(s => s.text);
+
+      const themePrefix = isLive ? 'Meeting Analysis' : `Analysis of "${fileName}"`;
+      
+      if (topSentences.length > 0) {
+        summary = `${themePrefix} (${dateStr}): This session primarily addressed ${highlights.join(', ')}. Key insights included: ${topSentences.join(' ')}`;
+      } else {
+        // Fallback to first few meaningful lines if scoring fails
+        summary = `${themePrefix}. Discussion overview: ${text.substring(0, 450).replace(/\s+/g, ' ')}...`;
+      }
+    }
+
+    // 3. Action Item Extraction
+    const actionPhrases = ['i will', 'we must', 'need to', 'assign', 'follow up', 'remind', 'todo', 'action item', 'let\'s', 'should', 'deadline'];
+    const rawLines = text.split(/[.!?\n]/).filter(s => s.trim().length > 15);
+    const actionItems = rawLines
+      .filter(s => actionPhrases.some(p => s.toLowerCase().includes(p)))
+      .map(s => {
+        let clean = s.trim().replace(/^[-*•]\s+/, '').replace(/todo:|action item:/i, '');
+        return clean.charAt(0).toUpperCase() + clean.slice(1);
+      })
+      .slice(0, 5);
+
+    if (actionItems.length === 0) {
+      if (highlights.includes('General Discussion')) {
+        actionItems.push('Define meeting rhythm and communication channels.');
+      } else {
+        actionItems.push(`Follow up on ${highlights[0]} discussion points.`);
+      }
+      actionItems.push('Review the generated transcript for missed details.');
+    }
+
     return {
       status: 'Processed',
-      duration: isLive ? `Live — ${timeStr}` : 'Audio Analysis',
-      participants: isLive ? ['You', 'AI Transcriber'] : ['Speaker A', 'Speaker B', 'AI Transcriber'],
-      summary: isLive
-        ? `Live recording captured on ${dateStr} at ${timeStr}. The session covered key discussion points including project milestones, team blockers, and upcoming deadlines. The AI transcriber identified 3 main speakers and multiple action items raised across the conversation.`
-        : `Audio file "${fileName}" processed. The meeting covered strategic planning, resource allocation, and follow-up action items. Participants discussed recent blockers and proposed solutions for the upcoming sprint cycle.`,
-      highlights: isLive ? ['Live Session', 'Real-time', 'Recording'] : ['Audio Analysis', 'Sprint Planning', 'Team Sync'],
-      transcript: [
-        { speaker: isLive ? 'You' : 'Speaker A', text: "Let's start by reviewing what we accomplished last sprint.", time: '0:05' },
-        { speaker: isLive ? 'AI Transcriber' : 'Speaker B', text: 'The main blockers were around the API integration and test coverage.', time: '1:40' },
-        { speaker: isLive ? 'You' : 'Speaker A', text: 'We need to prioritize resolving those before the release deadline.', time: '3:15' },
-        { speaker: isLive ? 'AI Transcriber' : 'Speaker B', text: 'Agreed. I can handle the API tests if you can review the integration code.', time: '5:00' },
-      ],
-      actionItems: [
-        'Review API integration code and flag blockers',
-        'Increase test coverage to minimum 80% before release',
-        'Schedule follow-up sync to confirm task assignments',
-      ],
-      deadlines: [{ task: 'Sprint Release', date: 'End of Week' }],
+      summary,
+      highlights: highlights.slice(0, 5),
+      actionItems: actionItems.slice(0, 4),
+      // Try to preserve/create a transcript structure
+      transcript: isLive ? null : (text.length > 0 ? [{ speaker: 'Document/Audio', text, time: 'Full' }] : [])
     };
   };
 
   const handleUpload = async (file) => {
     setIsUploading(false);
-    showToast(`Analyzing ${file.name}...`, 'info');
+    showToast(`Incoming: ${file.name}...`, 'info');
     
     const newId = Math.random().toString(36).substr(2, 9);
     const fileName = file.name || "Upload.pdf";
     const extension = fileName.split('.').pop().toLowerCase();
     const isAudio = ['mp3', 'wav', 'm4a', 'ogg', 'webm'].includes(extension);
-    const isLiveRecording = !!file.isLiveRecording;
     
-    // Initial Meeting State
+    // Initial UI State
     const initialMeeting = {
       id: newId,
       title: fileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ').replace(/-/g, ' '),
       date: new Date().toISOString().split('T')[0],
       duration: 'Detailed Sync',
-      participants: ['System AI', 'Analyzer'],
+      participants: ['AI Analyzer'],
       status: 'Processing',
-      summary: 'Establishing document context...',
-      highlights: ['System'],
-      transcript: [{ speaker: 'System', text: `Initiated analysis for ${fileName}...`, time: '0:01' }],
+      summary: 'Reading content and extracting context...',
+      highlights: ['Processing'],
+      transcript: [],
       deadlines: [],
       actionItems: []
     };
 
     setMeetings(prev => [initialMeeting, ...prev]);
 
-    // --- AUDIO / LIVE RECORDING PATH ---
-    if (isAudio || isLiveRecording) {
-      setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Transcribing audio stream...' } : m));
+    // Improved Audio Simulation (mocking transcription for demo)
+    if (isAudio) {
       setTimeout(() => {
-        const audioData = generateAudioSummary(fileName, isLiveRecording);
-        setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...audioData } : m));
-        showToast('Audio analysis complete!');
-      }, 3000);
+        const mockTranscript = `Transcript extracted from audio file "${fileName}". The session covers technical roadmap items, including the migration of backend services and the implementation of new security protocols. Key stakeholders discussed the timeline for the Q4 rollout and identified potential blockers in the devops pipeline.`;
+        const audioResult = processAnalyzedContent(mockTranscript, fileName, false);
+        audioResult.summary = `Audio analysis of "${fileName}": The recording covers ${audioResult.highlights.join(' & ')}. Major points include system architecture updates and resource planning for the next phase.`;
+        setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...audioResult, status: 'Processed' } : m));
+        showToast('Audio file analyzed successfully!', 'success');
+      }, 2500);
       return;
     }
 
-    // --- DOCUMENT EXTRACTION PATH ---
-    (async () => {
+    // Process Document
+    try {
       let extractedText = "";
-      let logs = [];
-      
-      try {
-        logs.push(`Reading file type: ${extension}`);
-        
-        if (extension === 'txt' || extension === 'md') {
-          extractedText = await file.text();
-          logs.push(`Successfully read ${extractedText.length} characters of text.`);
-        } else if (extension === 'pdf') {
-          const arrayBuffer = await file.arrayBuffer();
-          const loadingTask = pdfjsLib.getDocument({ 
-            data: arrayBuffer,
-            isEvalSupported: false,
-            disableFontFace: true
-          });
-          const pdf = await loadingTask.promise;
-          logs.push(`PDF loaded. Total pages: ${pdf.numPages}`);
-          
-          let fullText = "";
-          for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            fullText += content.items.map(item => item.str).join(" ") + " \n";
-          }
-          extractedText = fullText.trim();
-          logs.push(`Extracted ${extractedText.length} characters from PDF.`);
-        } else {
-          logs.push(`Unsupported file type for deep extraction. Using meta-analysis.`);
+      if (extension === 'txt' || extension === 'md') {
+        extractedText = await file.text();
+      } else if (extension === 'pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false });
+        const pdf = await loadingTask.promise;
+        let fullText = "";
+        for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map(item => item.str).join(" ") + " \n";
         }
-      } catch (err) {
-        console.error("Extraction fail:", err);
-        logs.push(`Extraction failed: ${err.message}`);
+        extractedText = fullText.trim();
       }
 
-      setMeetings(prev => prev.map(m => m.id === newId ? { ...m, summary: 'Synthesizing final executive summary...' } : m));
-
-      // Final processing after extraction
       setTimeout(() => {
-        const text = extractedText || "";
-        const snippet = text.toLowerCase();
-        
-        const res = {
-          summary: text.length > 50 
-            ? `Summary of ${fileName}: ${text.substring(0, 450).replace(/\s+/g, ' ')}...`
-            : `System Analysis: We successfully uploaded and identified "${fileName}". The document discusses key operational and strategic updates. We'll proceed with further synthesis of the available data points.`,
-          highlights: [],
-          status: 'Processed'
-        };
+        const analysis = processAnalyzedContent(extractedText, fileName, false);
+        setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...analysis } : m));
+        showToast('Document fully analyzed!');
+      }, 2000);
 
-        // Heuristics for keywords
-        if (snippet.includes('marketing') || fileName.includes('marketing')) res.highlights.push('Marketing');
-        if (snippet.includes('project') || snippet.includes('goal')) res.highlights.push('Strategy');
-        if (snippet.includes('cost') || snippet.includes('budget')) res.highlights.push('FinOps');
-        if (res.highlights.length === 0) res.highlights = ['Report', 'Corporate'];
-
-        // Find Action Items
-        const lines = text.split('\n');
-        res.actionItems = lines
-          .filter(l => l.length > 5 && (l.toLowerCase().includes('todo') || l.toLowerCase().includes('action') || l.trim().startsWith('-')))
-          .slice(0, 4)
-          .map(l => l.replace(/todo|action|item|:|-/gi, '').trim());
-
-        if (res.actionItems.length === 0) {
-          res.actionItems = [`Perform thorough review of ${fileName}`, 'Report findings to management'];
-        }
-
-        const finalTranscript = logs.map((l, i) => ({ speaker: 'Analyzer', text: l, time: `Log ${i+1}` }));
-        if (text.length > 0) {
-          finalTranscript.push({ speaker: 'Source', text: `[Full Text Preview]: ${text.substring(0, 2000)}`, time: 'Data' });
-        }
-
-        setMeetings(prev => prev.map(m => m.id === newId ? { 
-          ...m, 
-          ...res, 
-          transcript: finalTranscript
-        } : m));
-        
-        showToast('Document fully processed!');
-      }, 1500);
-    })();
+    } catch (err) {
+      console.error(err);
+      setMeetings(prev => prev.map(m => m.id === newId ? { 
+        ...m, 
+        status: 'Error', 
+        summary: `Analysis failed: ${err.message}. Please try again or use a different file.` 
+      } : m));
+    }
   };
 
   return (
@@ -931,6 +1060,8 @@ export default function App() {
               onUploadClick={() => setIsUploading(true)}
               onRecordToggle={handleRecordToggle}
               isRecording={isRecording}
+              liveTranscript={liveTranscript}
+              recordingDuration={recordingDuration}
             />
           )}
           {view === 'detail' && (
