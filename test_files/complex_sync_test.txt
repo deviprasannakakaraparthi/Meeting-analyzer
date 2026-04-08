@@ -1,0 +1,12 @@
+Engineering Sync: Backend Migration Strategy
+Participants: Alice, Bob, Charlie
+
+The primary goal of today's meeting is to decide on the Aurora Postgres migration strategy. Bob mentioned that we must ensure the new instances are in the same VPC as our EKS cluster to avoid peering latency. Charlie agreed and added that we should use Terraform for the infrastructure set up to keep everything in sync with our current IAC. 
+
+We decided that we will proceed with the blue-green deployment model instead of a rolling update to minimize downtime for our customers. Alice mentioned that this is due to the context of our strict SLA for the upcoming peak season. 
+
+Action: Bob will finalize the network peering configuration by Friday.
+Action: Sofia will review the Terraform scripts.
+Sofia: I need to check the IAM roles before we deploy.
+
+The session concluded with a focus on the staging environment verification which must be completed by end of week.
