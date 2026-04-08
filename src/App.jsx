@@ -822,6 +822,7 @@ export default function App() {
   const [liveTranscript, setLiveTranscript] = useState([]);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [toast, setToast] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -1007,6 +1008,7 @@ export default function App() {
       };
       setMeetings(prev => [initialMeeting, ...prev]);
 
+      setIsProcessing(true);
       setTimeout(() => {
         const fullText = capturedLines.map(l => l.text).join(' ');
         const result = processAnalyzedContent(fullText, null, true);
@@ -1015,9 +1017,9 @@ export default function App() {
         result.title = `Live Recording — ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
         result.duration = `${Math.floor(finalDuration / 60)}m ${finalDuration % 60}s`;
         result.participants = ['You (Guest)'];
-        result.transcript = capturedLines.length > 0 ? capturedLines : [{ speaker: 'System', text: 'No speech was detected.', time: '0:00' }];
         
         setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...result } : m));
+        setIsProcessing(false);
         showToast('✅ Session analyzed!', 'success');
       }, 1500);
 
@@ -1128,8 +1130,10 @@ export default function App() {
   };
 
   const handleUpload = async (file) => {
+    if (!file) return;
     setIsUploading(false);
-    showToast(`Incoming: ${file.name}...`, 'info');
+    setIsProcessing(true);
+    showToast(`MNC Synthesis Engine: ${file.name}...`, 'info');
     
     const newId = Math.random().toString(36).substr(2, 9);
     const fileName = file.name || "Upload.pdf";
@@ -1184,16 +1188,14 @@ export default function App() {
       setTimeout(() => {
         const analysis = processAnalyzedContent(extractedText, fileName, false);
         setMeetings(prev => [ { ...initialMeeting, ...analysis }, ...prev.filter(m => m.id !== newId) ]);
+        setIsProcessing(false);
         showToast('Document analyzed with enterprise precision.');
       }, 2000);
 
     } catch (err) {
       console.error(err);
-      setMeetings(prev => prev.map(m => m.id === newId ? { 
-        ...m, 
-        status: 'Error', 
-        summary: `Analysis engine failed: ${err.message}. Please verify file format.` 
-      } : m));
+      setIsProcessing(false);
+      showToast('Engine Busy. Please retry in 3 seconds.', 'error');
     }
   };
 
@@ -1206,6 +1208,14 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {isProcessing && (
+        <div className="overlay" style={{ zIndex: 1000, background: 'rgba(255,255,255,0.7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="spinner" style={{ width: '50px', height: '50px', border: '4px solid #f3f3f3', borderTop: '4px solid var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <h2 style={{ marginTop: '24px' }}>AI Synthesis in Progress...</h2>
+          <p className="text-muted">Extracting decisions and action items</p>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
       <Sidebar currentView={view} setView={setView} />
       
       <main style={{ flexGrow: 1, overflowY: 'auto' }}>
