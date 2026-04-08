@@ -116,14 +116,64 @@ const Sidebar = ({ currentView, setView }) => {
         ))}
       </nav>
       <div 
-        className={`nav-item ${currentView === 'profile' ? 'active' : ''}`} 
-        style={{ marginTop: 'auto', cursor: 'pointer', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }} 
-        onClick={() => setView('profile')}
+        className={`nav-item logout-btn`} 
+        style={{ marginTop: 'auto', cursor: 'pointer', borderTop: '1px solid #e2e8f0', paddingTop: '24px', color: 'var(--danger)' }} 
+        onClick={() => {
+          localStorage.removeItem('summai_user');
+          window.location.reload();
+        }}
       >
-        <User size={20} />
-        My Profile
+        <ArrowLeft size={18} />
+        Sign Out
       </div>
     </aside>
+  );
+};
+
+const AuthView = ({ onLogin }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+
+  return (
+    <div className="auth-container">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="auth-glass">
+        <div className="logo" style={{ justifyContent: 'center', marginBottom: '32px' }}>
+          <Target size={40} /> <span className="gradient-text" style={{ fontSize: '2.5rem' }}>SummAI</span>
+        </div>
+        <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>{isLogin ? 'Enterprise Login' : 'Create Account'}</h2>
+        <p className="text-muted" style={{ textAlign: 'center', marginBottom: '40px' }}>Access your secure meeting workspace.</p>
+        
+        <form onSubmit={(e) => { e.preventDefault(); onLogin(formData); }}>
+          {!isLogin && (
+            <div className="input-group" style={{ marginBottom: '20px' }}>
+              <label>Full Name</label>
+              <input type="text" placeholder="John Doe" required onChange={e => setFormData({...formData, name: e.target.value})} />
+            </div>
+          )}
+          <div className="input-group" style={{ marginBottom: '20px' }}>
+            <label>Business Email</label>
+            <input type="email" placeholder="name@company.com" required onChange={e => setFormData({...formData, email: e.target.value})} />
+          </div>
+          <div className="input-group" style={{ marginBottom: '32px' }}>
+            <label>Password</label>
+            <input type="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '16px' }}>
+            {isLogin ? 'Sign In' : 'Create Enterprise Account'}
+          </button>
+        </form>
+        
+        <div style={{ textAlign: 'center', marginTop: '24px' }}>
+          <button className="text-btn" onClick={() => setIsLogin(!isLogin)}>
+            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+          </button>
+        </div>
+      </motion.div>
+      <div className="auth-decoration">
+        <div className="blob blob-1" />
+        <div className="blob blob-2" />
+      </div>
+    </div>
   );
 };
 
@@ -683,8 +733,43 @@ const ProfileView = ({ user, onUpdate, onShowToast }) => {
 // --- Main App ---
 
 export default function App() {
-  const [view, setView] = useState('dashboard');
-  const [meetings, setMeetings] = useState(INITIAL_MEETINGS);
+  const [view, setView] = useState('auth');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Persistence Layer
+  const [meetings, setMeetings] = useState(() => {
+    const saved = localStorage.getItem('summai_meetings');
+    return saved ? JSON.parse(saved) : INITIAL_MEETINGS;
+  });
+
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('summai_user');
+    return saved ? JSON.parse(saved) : {
+      name: 'Executive User',
+      email: 'exec@enterprise.com',
+      role: 'Strategy Lead',
+      plan: 'Enterprise',
+      notifications: true,
+      sharing: false,
+      isNew: true
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('summai_meetings', JSON.stringify(meetings));
+  }, [meetings]);
+
+  useEffect(() => {
+    localStorage.setItem('summai_user', JSON.stringify(user));
+  }, [user]);
+
+  useEffect(() => {
+    // Auto-login for demo if already setup
+    if (!user.isNew) {
+      setIsAuthenticated(true);
+      setView('dashboard');
+    }
+  }, []);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
@@ -692,14 +777,6 @@ export default function App() {
   const [liveTranscript, setLiveTranscript] = useState([]);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [toast, setToast] = useState(null);
-  const [user, setUser] = useState({
-    name: 'John Doe',
-    email: 'john.doe@company.com',
-    role: 'Product Lead',
-    plan: 'Pro Monthly',
-    notifications: true,
-    sharing: false
-  });
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -714,7 +791,18 @@ export default function App() {
     }
   }, [toast]);
 
-  const showToast = (message, type = 'success') => setToast({ message, type });
+  const handleLogin = (credentials) => {
+    setUser({ ...user, name: credentials.name || user.name, email: credentials.email || user.email, isNew: false });
+    setIsAuthenticated(true);
+    setView('dashboard');
+    showToast(`Welcome back, ${credentials.name || 'User'}!`, 'info');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setView('auth');
+    showToast('Logged out successfully', 'info');
+  };
 
   const handleAction = (meeting) => {
     setSelectedMeeting(meeting);
@@ -723,19 +811,19 @@ export default function App() {
 
   const handleSchedule = (data) => {
     const newM = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `m-${Date.now()}`,
       ...data,
       participants: data.participants.split(',').map(p => p.trim()),
       status: 'Upcoming',
-      summary: 'Preparing for meeting...',
-      highlights: [],
+      summary: 'Awaiting session start...',
+      highlights: ['Scheduled'],
       transcript: [],
       deadlines: [],
       actionItems: []
     };
     setMeetings([newM, ...meetings]);
     setIsScheduling(false);
-    showToast('Meeting scheduled successfully!');
+    showToast('Event synchronized to your calendar!');
   };
 
   const handleDeleteMeeting = (id) => {
@@ -1039,8 +1127,8 @@ export default function App() {
 
       setTimeout(() => {
         const analysis = processAnalyzedContent(extractedText, fileName, false);
-        setMeetings(prev => prev.map(m => m.id === newId ? { ...m, ...analysis } : m));
-        showToast('Document fully analyzed!');
+        setMeetings(prev => [ { ...initialMeeting, ...analysis }, ...prev.filter(m => m.id !== newId) ]);
+        showToast('Document analyzed with enterprise precision.');
       }, 2000);
 
     } catch (err) {
@@ -1048,10 +1136,17 @@ export default function App() {
       setMeetings(prev => prev.map(m => m.id === newId ? { 
         ...m, 
         status: 'Error', 
-        summary: `Analysis failed: ${err.message}. Please try again or use a different file.` 
+        summary: `Analysis engine failed: ${err.message}. Please verify file format.` 
       } : m));
     }
   };
+
+  if (!isAuthenticated) return (
+    <div className="auth-wrapper">
+      <AuthView onLogin={handleLogin} />
+      <AnimatePresence>{toast && <Toast message={toast.message} type={toast.type} />}</AnimatePresence>
+    </div>
+  );
 
   return (
     <div className="app-container">
