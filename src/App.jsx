@@ -771,24 +771,39 @@ export default function App() {
           recognition.lang = 'en-US';
           recognitionRef.current = recognition;
 
+          let lastFinalResultIndex = -1;
+
           recognition.onresult = (event) => {
+            let interimTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
               const result = event.results[i];
-              if (result.isFinal) {
+              if (result.isFinal && i > lastFinalResultIndex) {
+                lastFinalResultIndex = i;
                 const mins = Math.floor(recordingTimerRef._seconds / 60);
                 const secs = (recordingTimerRef._seconds || 0) % 60;
                 const timeLabel = `${mins}:${String(secs).padStart(2,'0')}`;
-                const entry = { speaker: 'You', text: result[0].transcript.trim(), time: timeLabel };
-                liveTranscriptRef.current = [...liveTranscriptRef.current, entry];
-                setLiveTranscript([...liveTranscriptRef.current]);
+                
+                const text = result[0].transcript.trim();
+                if (text.length > 0) {
+                  const entry = { speaker: 'You', text, time: timeLabel };
+                  liveTranscriptRef.current = [...liveTranscriptRef.current, entry];
+                  setLiveTranscript([...liveTranscriptRef.current]);
+                }
+              } else {
+                interimTranscript += result[0].transcript;
               }
+            }
+            // Update the live preview with interim results too
+            if (interimTranscript) {
+              setLiveTranscript([...liveTranscriptRef.current, { speaker: 'You', text: interimTranscript + '...', time: 'Live' }]);
             }
           };
 
           recognition.onerror = (e) => {
             // 'no-speech' and 'aborted' are normal — don't show error toast
             if (e.error !== 'no-speech' && e.error !== 'aborted') {
-              showToast(`Speech recognition error: ${e.error}`, 'error');
+              console.error('Speech recognition error:', e.error);
+              showToast(`Mic issue: ${e.error}. Try refreshing.`, 'error');
             }
           };
 
@@ -807,7 +822,7 @@ export default function App() {
         startRecognition();
         isRecordingRef.current = true;
         setIsRecording(true);
-        showToast('🎙️ Mic active. Speak now — your words are being transcribed in real-time!');
+        showToast('🎙️ Live Session Started. Every word you say is being analyzed!', 'success');
 
         // Timer
         let seconds = 0;
@@ -833,9 +848,12 @@ export default function App() {
         recordingTimerRef.current = null;
       }
       setIsRecording(false);
-      showToast('Processing your recording...');
+      showToast('Analyzing session content...', 'info');
 
-      const capturedLines = liveTranscriptRef.current;
+      // Small delay to allow final results to trickle in
+      await new Promise(r => setTimeout(r, 800));
+
+      const capturedLines = liveTranscriptRef.current.filter(l => l.time !== 'Live');
       const fileName = `Recording_${new Date().toISOString().split('T')[0]}`;
       const newId = Math.random().toString(36).substr(2, 9);
       // Use ref directly — avoids stale closure from recordingDuration state
