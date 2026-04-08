@@ -883,6 +883,8 @@ export default function App() {
     }
   }, [toast]);
 
+  const showToast = (message, type = 'success') => setToast({ message, type });
+
   const handleLogin = (credentials) => {
     setUser({ ...user, name: credentials.name || user.name, email: credentials.email || user.email, isNew: false });
     setIsAuthenticated(true);
