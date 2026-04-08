@@ -34,8 +34,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as pdfjsLib from 'pdfjs-dist';
-
-import * as pdfjsLib from 'pdfjs-dist';
 import OpenAI from 'openai';
 
 // Configure pdfjs worker
