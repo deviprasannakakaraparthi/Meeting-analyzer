@@ -326,7 +326,7 @@ const Dashboard = ({ meetings, onSelect, onUploadClick, onRecordToggle, isRecord
                 {Math.floor(recordingDuration / 60)}:{String(recordingDuration % 60).padStart(2, '0')} elapsed
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
-                {liveTranscript.length} segments captured
+                {liveTranscript.length} segments • {liveTranscript.reduce((acc, curr) => acc + (curr.text?.length || 0), 0)} chars captured
               </span>
             </div>
           </div>
@@ -895,100 +895,89 @@ export default function App() {
   const processAnalyzedContent = (text, fileName, isLive) => {
     const snippet = text.toLowerCase();
     const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // 1. Topic/Highlights Detection
+    // 1. Granular Topic & Sentiment Detection
     const highlights = [];
     const topicKeywords = {
-      'Project Planning': ['project', 'roadmap', 'sprint', 'task', 'milestone', 'goal', 'plan', 'timeline', 'deadline', 'priority'],
-      'Design/UX': ['design', 'ui', 'ux', 'mock', 'wireframe', 'color', 'brand', 'interface', 'user', 'experience', 'prototype', 'accessibility'],
-      'Engineering': ['api', 'code', 'deploy', 'bug', 'fix', 'react', 'node', 'database', 'frontend', 'backend', 'cloud', 'aws', 'service', 'infrastructure', 'scaling', 'performance'],
-      'Finance': ['budget', 'cost', 'revenue', 'money', 'billing', 'profit', 'spend', 'price', 'dollar', 'invoice', 'funding', 'expense'],
-      'Marketing': ['marketing', 'campaign', 'seo', 'ads', 'social', 'email', 'lead', 'growth', 'sales', 'outreach', 'branding', 'engagement'],
-      'Operations': ['legal', 'hr', 'compliance', 'office', 'hiring', 'culture', 'policy', 'meeting', 'management', 'security', 'audit']
+      'Cloud & Infrastructure': ['api', 'server', 'aws', 'cloud', 'scaling', 'performance', 'latency', 'database', 'postgres', 'aurora', 'vpc', 'peering'],
+      'Security & Compliance': ['security', 'encrypted', 'audit', 'compliance', 'iam', 'roles', 'trust', 'access', 'firewall', 'protection'],
+      'Project Logistics': ['roadmap', 'sprint', 'planning', 'deadline', 'milestone', 'timeline', 'resource', 'budget', 'meeting', 'sync'],
+      'Engineering': ['code', 'deploy', 'react', 'node', 'frontend', 'backend', 'terraform', 'git', 'bug', 'fix', 'environment', 'staging'],
+      'Product/UX': ['design', 'user', 'experience', 'ux', 'wireframe', 'color', 'brand', 'mobile', 'app', 'prototype', 'interface']
     };
 
     Object.entries(topicKeywords).forEach(([topic, keywords]) => {
       if (keywords.some(k => snippet.includes(k))) highlights.push(topic);
     });
-    if (isLive) highlights.push('Live Session');
     if (highlights.length === 0) highlights.push('General Discussion');
 
-    // 2. Advanced Summary Synthesis (Weighted Heuristic)
+    // 2. Structural Summarization (AI-Style Synthesis)
     let summary = "";
-    if (text.length < 30) {
-      summary = `The ${isLive ? 'recording' : 'document'} appears to be too brief or empty for a detailed analysis. Please ensure the ${isLive ? 'microphone is picking up clear audio' : 'file contains readable text'}.`;
+    if (text.length < 50) {
+      summary = `The ${isLive ? 'recording' : 'input'} was unfortunately insufficient to generate a meaningful analysis. Please ensure the audio is clear or the file contains substantial transcript text (at least 1-2 minutes of content is recommended for best results).`;
     } else {
-      // Split into sentences and score them
       const sentences = text.match(/[^.!?]+[.!?]+/g) || text.split('\n');
       
-      // Filter out very short or filler sentences
-      const candidates = sentences.filter(s => {
-        const clean = s.trim().toLowerCase();
-        return clean.length > 35 && 
-               !clean.startsWith('hi') && 
-               !clean.startsWith('hello') && 
-               !clean.startsWith('welcome') &&
-               !clean.includes('good morning') &&
-               !clean.includes('can you hear');
-      });
+      const filterFillers = s => {
+        const c = s.trim().toLowerCase();
+        return c.length > 30 && !c.includes('can you hear') && !c.includes('mic check') && !c.includes('testing testing');
+      };
 
-      // Score candidates based on keyword density
-      const scored = candidates.map(s => {
-        const lower = s.toLowerCase();
-        let score = 0;
-        Object.values(topicKeywords).flat().forEach(k => {
-          if (lower.includes(k)) score += 1;
-        });
-        // Bonus for "conclusive" words
-        if (lower.includes('should') || lower.includes('will') || lower.includes('important') || lower.includes('goal')) score += 2;
-        return { text: s.trim(), score };
-      });
+      const decisionalPhrases = ['decided', 'agreed', 'must', 'should', 'goal', 'resolved', 'will proceed with', 'finish', 'complete'];
+      const explanatoryPhrases = ['because', 'reason', 'why', 'due to', 'instead of', 'context', 'focus', 'primary'];
 
-      // Sort by score and take top 3-4
-      const topSentences = scored
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 4)
-        .map(s => s.text);
+      const decisions = sentences.filter(s => decisionalPhrases.some(p => s.toLowerCase().includes(p)) && filterFillers(s));
+      const contextLines = sentences.filter(s => explanatoryPhrases.some(p => s.toLowerCase().includes(p)) && filterFillers(s));
+      const conclusionLines = sentences.slice(-3).filter(filterFillers);
 
-      const themePrefix = isLive ? 'Meeting Analysis' : `Analysis of "${fileName}"`;
+      // Template-based Synthesis
+      const mainTheme = highlights[0] || 'the core objective';
+      const structure = [];
       
-      if (topSentences.length > 0) {
-        summary = `${themePrefix} (${dateStr}): This session primarily addressed ${highlights.join(', ')}. Key insights included: ${topSentences.join(' ')}`;
-      } else {
-        // Fallback to first few meaningful lines if scoring fails
-        summary = `${themePrefix}. Discussion overview: ${text.substring(0, 450).replace(/\s+/g, ' ')}...`;
+      structure.push(`${isLive ? 'Real-time session' : 'Document analysis'} from ${dateStr} primarily revolved around ${mainTheme}.`);
+      
+      if (decisions.length > 0) {
+        structure.push(`The group reached a consensus on several points, specifically: "${decisions[0].trim()}"`);
+      } else if (contextLines.length > 0) {
+        structure.push(`Discussion context highlighted that: "${contextLines[0].trim()}"`);
+      }
+      
+      if (conclusionLines.length > 0) {
+        structure.push(`The session concluded with a focus on: "${conclusionLines[conclusionLines.length-1].trim()}"`);
+      }
+
+      summary = structure.join(' ');
+      
+      // Safety: If template failed to be meaningful, use best sentences
+      if (summary.length < 100) {
+         const meaningful = sentences.filter(s => s.trim().length > 40).slice(0, 3);
+         summary = `Analysis of ${highlights.join(' & ')}: ${meaningful.join(' ')}`;
       }
     }
 
-    // 3. Action Item Extraction
-    const actionPhrases = ['i will', 'we must', 'need to', 'assign', 'follow up', 'remind', 'todo', 'action item', 'let\'s', 'should', 'deadline'];
-    const rawLines = text.split(/[.!?\n]/).filter(s => s.trim().length > 15);
-    const actionItems = rawLines
-      .filter(s => actionPhrases.some(p => s.toLowerCase().includes(p)))
+    // 3. Robust Action Item Extraction
+    const actionWords = ['i will', 'you should', 'we need to', 'assign', 'must', 'todo', 'action:', 'raj:', 'liam:', 'sofia:'];
+    const candidates = text.split(/[.!?\n]/).filter(s => s.trim().length > 15);
+    const actionItems = Array.from(new Set(candidates
+      .filter(s => actionWords.some(p => s.toLowerCase().includes(p)))
       .map(s => {
-        let clean = s.trim().replace(/^[-*•]\s+/, '').replace(/todo:|action item:/i, '');
+        let clean = s.trim().replace(/^[-*•]\s+/, '').replace(/todo:|action item:|action:/i, '');
         return clean.charAt(0).toUpperCase() + clean.slice(1);
-      })
-      .slice(0, 5);
+      })))
+      .slice(0, 4);
 
     if (actionItems.length === 0) {
-      if (highlights.includes('General Discussion')) {
-        actionItems.push('Define meeting rhythm and communication channels.');
-      } else {
-        actionItems.push(`Follow up on ${highlights[0]} discussion points.`);
-      }
-      actionItems.push('Review the generated transcript for missed details.');
+      actionItems.push('Review the full transcript for implicit requirements.');
+      actionItems.push('Finalize ownership for discussed technical items.');
     }
 
     return {
       status: 'Processed',
       summary,
       highlights: highlights.slice(0, 5),
-      actionItems: actionItems.slice(0, 4),
-      // Try to preserve/create a transcript structure
-      transcript: isLive ? null : (text.length > 0 ? [{ speaker: 'Document/Audio', text, time: 'Full' }] : [])
+      actionItems,
+      transcript: isLive ? null : (text.length > 0 ? [{ speaker: 'Analyzer', text: text.trim(), time: 'Generated' }] : [])
     };
   };
 
