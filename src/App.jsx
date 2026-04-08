@@ -783,21 +783,55 @@ export default function App() {
   
   // Persistence Layer
   const [meetings, setMeetings] = useState(() => {
-    const saved = localStorage.getItem('summai_meetings');
-    return saved ? JSON.parse(saved) : INITIAL_MEETINGS;
+    try {
+      const saved = localStorage.getItem('summai_meetings');
+      if (!saved) return INITIAL_MEETINGS;
+      const parsed = JSON.parse(saved);
+      // Ensure it's an array and handle legacy null transcripts
+      if (Array.isArray(parsed)) {
+        return parsed.map(m => ({
+          ...m,
+          transcript: m.transcript || [],
+          highlights: m.highlights || [],
+          actionItems: m.actionItems || []
+        }));
+      }
+      return INITIAL_MEETINGS;
+    } catch (e) {
+      console.error('Data Sanitization Triggered:', e);
+      return INITIAL_MEETINGS;
+    }
   });
 
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('summai_user');
-    return saved ? JSON.parse(saved) : {
-      name: 'Executive User',
-      email: 'exec@enterprise.com',
-      role: 'Strategy Lead',
-      plan: 'Enterprise',
-      notifications: true,
-      sharing: false,
-      isNew: true
-    };
+    try {
+      const saved = localStorage.getItem('summai_user');
+      if (!saved) return {
+        name: 'Executive User',
+        email: 'exec@enterprise.com',
+        role: 'Strategy Lead',
+        plan: 'Enterprise',
+        notifications: true,
+        sharing: false,
+        isNew: true
+      };
+      const parsed = JSON.parse(saved);
+      return {
+        ...parsed,
+        name: parsed.name || 'Executive User',
+        email: parsed.email || 'exec@enterprise.com'
+      };
+    } catch (e) {
+      return {
+        name: 'Executive User',
+        email: 'exec@enterprise.com',
+        role: 'Strategy Lead',
+        plan: 'Enterprise',
+        notifications: true,
+        sharing: false,
+        isNew: true
+      };
+    }
   });
 
   useEffect(() => {
